@@ -1,0 +1,112 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\begin{document}
+
+\title{Sentiment-Driven Movie Review Classification Using DistilBERT}
+
+\author{
+\IEEEauthorblockN{Kaiyang Luo}
+\IEEEauthorblockA{
+Department of Statistics \\
+University of Michigan \\
+Email: kaiyangl@umich.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+Sentiment analysis on movie reviews is a fundamental natural language processing (NLP) task with wide applications in opinion mining and recommendation systems. This project investigates sentiment classification using both classical machine-learning models and modern Transformer-based architectures. Specifically, we compare a TF--IDF + Logistic Regression baseline model with a fine-tuned DistilBERT model on the IMDB dataset. Experimental results show that DistilBERT significantly outperforms the baseline in accuracy and F1-score, achieving 0.909 F1 on the IMDB test set. We further conduct error analysis to identify common failure patterns such as sarcasm, contrastive sentiment, and the truncation of long reviews. The study demonstrates both the effectiveness and the limitations of lightweight Transformer models for real-world sentiment classification tasks.
+\end{abstract}
+
+\section{Introduction}
+Sentiment analysis is one of the most widely studied text-classification tasks, enabling automated systems to understand opinions expressed in natural language. Classical approaches typically rely on TF--IDF or bag-of-words representations combined with machine-learning classifiers. While effective for simpler text, these models struggle with semantic dependencies and contextual meaning.
+
+Recent advances in NLP have been dominated by Transformer-based architectures such as BERT~\cite{devlin2019bert} and DistilBERT~\cite{sanh2019distilbert}. These models leverage self-attention and large-scale pretraining to capture linguistic structures far beyond the capacity of traditional methods. The goal of this project is to implement a complete sentiment-classification pipeline using Hugging Face tools and compare a classical baseline with a fine-tuned DistilBERT system.
+
+The primary contributions of this work include: (1) building a reproducible end-to-end pipeline for sentiment classification using Python and Hugging Face, (2) demonstrating the performance improvements of Transformer finetuning over classical ML models on IMDB, and (3) analyzing the types of errors and limitations inherent in the DistilBERT model.
+
+\section{Method}
+
+\subsection{Dataset}
+The IMDB dataset consists of 50{,}000 movie reviews labeled as positive or negative, with a perfectly balanced class distribution. Following common practice, we used the official test set (25{,}000 reviews) for final evaluation. The remaining 25{,}000 reviews were split into 90\% training and 10\% validation. Reviews vary widely in length, with an average of 234 words and a maximum exceeding 2{,}400 words.
+
+\subsection{Baseline Model: TF--IDF + Logistic Regression}
+For the classical machine-learning baseline, text was transformed using TF--IDF features with up to 50{,}000 n-grams (1--2 grams) and English stop-word removal. A Logistic Regression classifier with $C=1.0$ and \texttt{max\_iter=200} was trained on the resulting sparse vectors. This baseline provides a strong linear reference model that is fast to train and easy to interpret, but it does not model contextual interactions between words.
+
+\subsection{Transformer Model: DistilBERT Fine-Tuning}
+We fine-tuned the \texttt{distilbert-base-uncased} model using the Hugging Face \texttt{Trainer} API. Each review was tokenized with truncation to 216 tokens and dynamic padding. Training was conducted for 2 epochs with a per-device batch size of 16, learning rate of $2\times 10^{-5}$, and weight decay of 0.01. Mixed-precision (fp16) training was used on a single GPU. Validation F1-score was used as the model-selection metric, and the best checkpoint was loaded at the end of training.
+
+\subsection{Evaluation Metrics}
+We report accuracy, precision, recall, and F1-score for both baseline and fine-tuned models. In addition, we plot confusion matrices and training-loss curves to visualize performance and training dynamics.
+
+\section{Results}
+
+\subsection{Quantitative Performance}
+Table~\ref{tab:results} summarizes model performance on the IMDB test set.
+
+\begin{table}[h]
+\centering
+\caption{Model performance on the IMDB test set.}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+Model & Acc. & Prec. & Rec. & F1 \\
+\midrule
+TF--IDF + LR & 0.881 & 0.88 & 0.88 & 0.88 \\
+DistilBERT (fine-tuned) & \textbf{0.909} & \textbf{0.904} & \textbf{0.914} & \textbf{0.909} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The fine-tuned DistilBERT model improves test accuracy by 2.8 percentage points over the classical baseline and yields a higher F1-score on both classes, demonstrating clear gains from contextualized representations.
+
+\subsection{Confusion Matrix}
+Fig.~\ref{fig:cm} shows the confusion matrix for DistilBERT on the 25{,}000-sample test set. The model correctly classifies 11{,}294 negative and 11{,}421 positive reviews, with 1{,}206 false positives and 1{,}079 false negatives. Errors are roughly balanced across sentiment classes, with a slight tendency toward false positives.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{confusion_distilbert.png}
+\caption{Confusion matrix of DistilBERT on the IMDB test set.}
+\label{fig:cm}
+\end{figure}
+
+\subsection{Training Curve}
+Fig.~\ref{fig:loss} shows the training-loss trajectory over time. Loss decreases rapidly during the first epoch and continues to improve more slowly in the second epoch, suggesting that the model has not yet fully overfit the training data.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{training_curve_distilbert.png}
+\caption{Training loss curve during DistilBERT fine-tuning.}
+\label{fig:loss}
+\end{figure}
+
+\subsection{Error Analysis}
+To better understand the limitations of the fine-tuned DistilBERT model, we inspected the top 20 misclassified test examples with the highest prediction confidence. All examined cases corresponded to false positives, where the model predicted positive sentiment for reviews labeled as negative. This indicates that DistilBERT is overly sensitive to surface-level positive lexical cues.
+
+First, many misclassified reviews contained strongly positive expressions (e.g., \emph{``one of the best Kung fu movies''}, \emph{``pure genius''}, \emph{``I love this show''}) despite the overall sentiment being negative. Because inputs were truncated to 216 tokens, negative content frequently appeared near the end of long reviews and was removed during tokenization. As a result, the model primarily observed positive opening sentences and produced high-confidence positive predictions.
+
+Second, the model struggled with sarcasm and rhetorical exaggeration. Examples such as \emph{``Master P's acting skills make you actually believe he is Italian!''} and \emph{``best movie ever... what poetry!''} were classified as positive even though the reviewer clearly intended a negative evaluation. DistilBERT lacks the pragmatic understanding required to differentiate literal praise from sarcastic criticism.
+
+Third, several errors arose from reviews blending production-related commentary with mild praise, where emotional polarity is subtle or context-dependent. In such cases, isolated positive phrases outweighed the overall negative tone in the model's representation. These findings highlight the model's reliance on local lexical polarity, its limited ability to capture discourse-level sentiment, and the significant impact of input truncation on classification performance.
+
+\section{Conclusion}
+This project demonstrates that fine-tuning DistilBERT significantly improves sentiment-classification performance compared to a strong TF--IDF + Logistic Regression baseline on the IMDB dataset. While the model performs well overall, detailed error analysis reveals weaknesses related to sarcasm, mixed sentiment, and the truncation of long reviews. Future work may incorporate models with longer context windows (e.g., Longformer), sarcasm-aware training data, or hierarchical document encoders to better capture document-level sentiment.
+
+\begin{thebibliography}{00}
+
+\bibitem{devlin2019bert}
+J.~Devlin, M.-W. Chang, K.~Lee, and K.~Toutanova, ``BERT: Pre-training of deep bidirectional transformers for language understanding,'' in \emph{Proc. NAACL}, 2019.
+
+\bibitem{sanh2019distilbert}
+V.~Sanh, L.~Debut, J.~Chaumond, and T.~Wolf, ``DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter,'' \emph{arXiv:1910.01108}, 2019.
+
+\end{thebibliography}
+
+\end{document}
