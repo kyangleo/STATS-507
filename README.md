@@ -25,7 +25,7 @@ The final report is written in IEEE conference format:
 - `stats507final.ipynb`  
   - End-to-end pipeline: data loading, EDA, baseline, DistilBERT fine-tuning, evaluation, and error analysis.
   - Designed to run on **Google Colab**.
-- `figures/` (optional but recommended)
+- `figures/` 
   - `imdb_length_histogram.png`
   - `confusion_baseline.png`
   - `confusion_distilbert.png`
